@@ -165,7 +165,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     return this.admin.firestore.Timestamp.fromDate(date);
   }
 
-  async collectionSnapshot(path: string, qb?: QueryBuilder): Promise<QuerySnapshot> {
+  collectionSnapshot(path: string, qb?: QueryBuilder): Promise<QuerySnapshot> {
     const collectionRef: any = this.db.collection(path);
 
     return (qb ? qb.build(collectionRef) : collectionRef).get();

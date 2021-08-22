@@ -1,1 +1,1 @@
-export { arrayToChunks } from '../../ngx/utils';
+export { arrayToChunks } from '../../ngx/utils/arrays';
