@@ -1,0 +1,13 @@
+{
+  "name": "simplyfire",
+  "version": "0.2.0",
+  "license": "MIT",
+  "keywords": [
+    "firestore",
+    "@angular/fire"
+  ],
+  "dependencies": {
+    "tslib": "^2.0.0",
+    "@firebase/firestore-types": "^2.2.0"
+  }
+}

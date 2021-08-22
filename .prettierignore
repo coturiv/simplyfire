@@ -1,0 +1,11 @@
+*.log
+log.txt
+npm-debug.log*
+
+/.idea
+/.sass-cache
+/.sourcemaps
+/.versions
+/.vscode
+/dist
+/node_modules

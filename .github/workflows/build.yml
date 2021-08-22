@@ -1,0 +1,26 @@
+name: ci
+on:
+  push:
+    branches-ignore:
+      - 'gh-pages'
+    tags:
+      - 'v*'
+    paths-ignore:
+      - '**.md'
+env:
+  ci: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - if: contains(github.ref, 'main')
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+          npm run publish
