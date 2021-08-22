@@ -1,11 +1,15 @@
 {
   "name": "simplyfire",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "MIT",
   "keywords": [
     "firestore",
     "@angular/fire"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coturiv/simplyfire.git"
+  },
   "dependencies": {
     "tslib": "^2.0.0",
     "@firebase/firestore-types": "^2.2.0"

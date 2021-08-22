@@ -19,17 +19,18 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
 
   private static instance: FirestoreCloudService = null;
 
-  constructor(admin: any) {
-    super();
+  static getInstance(admin: any) {
+    this.instance ??= new this();
+    this.instance.initialize(admin);
 
-    admin.initializeApp();
-    this.db = admin.firestore();
-
-    this.admin = admin;
+    return this.instance;
   }
 
-  static getInstance(admin: any) {
-    return (this.instance ??= new this(admin));
+  initialize(admin: any) {
+    admin.initializeApp();
+
+    this.db = admin.firestore();
+    this.admin = admin;
   }
 
   // -----------------------------------------------------------------------------------------------------
