@@ -80,7 +80,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     }
 
     updata.updatedTs = timestamp;
-    await this.docReference(`${collection}/id`).set(Object.assign({}, updata), opts);
+    await this.docReference(`${collection}/${id}`).set(Object.assign({}, updata), opts);
 
     return id;
   }
