@@ -142,7 +142,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     return totalCount;
   }
 
-  get batch(): WriteBatch | any {
+  get batch(): WriteBatch {
     return this.db.batch();
   }
 

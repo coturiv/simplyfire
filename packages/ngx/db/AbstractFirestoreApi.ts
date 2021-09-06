@@ -1,4 +1,4 @@
-import type { DocumentData, DocumentSnapshot, FieldValue, SetOptions, WriteBatch } from '@firebase/firestore';
+import type { DocumentData, DocumentSnapshot, FieldValue, SetOptions, WriteBatch } from '@firebase/firestore-types';
 import { QueryBuilder } from './QueryBuilder';
 
 export abstract class AbstractFirestoreApi {

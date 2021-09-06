@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
-  Firestore,
+  getFirestore,
   doc,
   docData,
   setDoc,
@@ -15,7 +15,7 @@ import {
   writeBatch,
   serverTimestamp
 } from '@angular/fire/firestore';
-import type { DocumentChangeType, DocumentData, QuerySnapshot, SetOptions } from '@angular/fire/firestore';
+import type { Firestore, DocumentChangeType, DocumentData, QuerySnapshot, SetOptions } from '@angular/fire/firestore';
 
 import { combineLatest, defer, Observable, of } from 'rxjs';
 import { map, switchMap, take } from 'rxjs/operators';
@@ -29,10 +29,14 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
   providedIn: 'root'
 })
 export class FirestoreService extends AbstractFirestoreApi {
+  firestore: Firestore;
+
   private cache = new Map<string, any>();
 
-  constructor(private firestore: Firestore) {
+  constructor() {
     super();
+
+    this.firestore = getFirestore();
   }
 
   // -----------------------------------------------------------------------------------------------------
@@ -127,7 +131,7 @@ export class FirestoreService extends AbstractFirestoreApi {
    * write batch
    */
   get batch() {
-    return writeBatch(this.firestore);
+    return writeBatch(this.firestore) as any;
   }
 
   /**
