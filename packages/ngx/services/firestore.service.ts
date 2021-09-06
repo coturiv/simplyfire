@@ -1,16 +1,27 @@
 import { Injectable } from '@angular/core';
-import { AngularFirestore } from '@angular/fire/firestore';
+import {
+  Firestore,
+  doc,
+  docData,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  collectionData,
+  collectionChanges,
+  getDocs,
+  documentId,
+  increment,
+  writeBatch,
+  serverTimestamp
+} from '@angular/fire/firestore';
+import type { DocumentChangeType, DocumentData, QuerySnapshot, SetOptions } from '@angular/fire/firestore';
+
 import { combineLatest, defer, Observable, of } from 'rxjs';
 import { map, switchMap, take } from 'rxjs/operators';
 
-import type { DocumentData, QuerySnapshot, SetOptions } from '@angular/fire/firestore';
-
-import firebase from 'firebase/app';
-
 import { QueryBuilder, AbstractFirestoreApi } from '../db';
 import { arrayToChunks } from '../utils';
-
-type DocumentChangeType = firebase.firestore.DocumentChangeType;
 
 const CACHE_MAX_AGE = 5 * 60 * 1000;
 
@@ -20,7 +31,7 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
 export class FirestoreService extends AbstractFirestoreApi {
   private cache = new Map<string, any>();
 
-  constructor(private afs: AngularFirestore) {
+  constructor(private firestore: Firestore) {
     super();
   }
 
@@ -41,54 +52,63 @@ export class FirestoreService extends AbstractFirestoreApi {
 
     let { id, ...updata } = data;
     if (!id) {
-      id = this.afs.createId();
+      id = documentId;
       updata.createdTs = timestamp;
     }
 
     updata.updatedTs = timestamp;
-    await this.afs.doc(`${collection}/${id}`).set(Object.assign({}, updata), opts);
+
+    const docRef = doc(this.firestore, `${collection}/${id}`);
+
+    await setDoc(docRef, Object.assign({}, updata), opts);
 
     return id;
   }
 
   update(path: string, data: { [key: string]: any }) {
+    const docRef = doc(this.firestore, path);
     const updatedTs = this.serverTimestamp;
 
     // ignore id
     delete data['id'];
 
-    return this.afs.doc(path).update(Object.assign({}, data, { updatedTs }));
+    return updateDoc(docRef, Object.assign({}, data, { updatedTs }));
   }
 
   delete(path: string) {
-    return this.afs.doc(path).delete();
+    const docRef = doc(this.firestore, path);
+    return deleteDoc(docRef);
   }
 
   async bulkUpsert(collection: string, docs: DocumentData[], opts?: SetOptions): Promise<void> {
     // Due to a batch limitation, need to split docs array into chunks
     for (const chunks of arrayToChunks(docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
+      const timestamp = this.serverTimestamp;
 
       chunks.forEach((doc) => {
         let { id, ...updata } = doc;
         if (!id) {
-          id = this.afs.createId();
+          id = documentId;
+          updata.createdTs = timestamp;
         }
 
-        batch.set(this.afs.doc(`${collection}/${id}`).ref, updata, opts);
+        updata.updatedTs = timestamp;
+
+        const docRef = doc(this.firestore, `${collection}/${id}`);
+        batch.set(docRef, updata, opts);
       });
       await batch.commit();
     }
   }
 
-  async bulkDelete(collection: string, qb?: QueryBuilder, maxSize = 1000): Promise<number> {
-    if (!qb) {
-      qb = new QueryBuilder();
-      qb.limit(maxSize);
-    }
+  async bulkDelete(path: string, qb?: QueryBuilder, maxSize = 1000): Promise<number> {
+    qb ??= new QueryBuilder();
+    qb.limit(maxSize);
 
     let totalCount = 0;
-    const snapshot: QuerySnapshot<DocumentData> = await qb.build(this.afs.collection(collection).ref).get();
+    const collectionRef = collection(this.firestore, path);
+    const snapshot: QuerySnapshot<DocumentData> = await getDocs(qb.build(collectionRef));
 
     // Due to a batch limitation, need to split docs array into chunks
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
@@ -107,21 +127,21 @@ export class FirestoreService extends AbstractFirestoreApi {
    * write batch
    */
   get batch() {
-    return this.afs.firestore.batch();
+    return writeBatch(this.firestore);
   }
 
   /**
    * firestore timestamp
    */
   get serverTimestamp() {
-    return firebase.firestore.FieldValue.serverTimestamp();
+    return serverTimestamp();
   }
 
   /**
    * FieldValue increment
    */
   increment(n = 1) {
-    return firebase.firestore.FieldValue.increment(n);
+    return increment(n);
   }
 
   // -----------------------------------------------------------------------------------------------------
@@ -129,24 +149,27 @@ export class FirestoreService extends AbstractFirestoreApi {
   // -----------------------------------------------------------------------------------------------------
 
   collectionValueChanges<T = any>(path: string, qb?: QueryBuilder): Observable<T[]> {
-    return this.afs
-      .collection(path, (ref) => (qb ? qb.build(ref) : ref))
-      .valueChanges({ idField: 'id' })
-      .pipe((s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s));
+    const collectionRef = collection(this.firestore, path);
+    qb ??= new QueryBuilder();
+
+    return collectionData(qb.build(collectionRef), { idField: 'id' }).pipe((s) =>
+      (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+    );
   }
 
   collectionSnapshotChanges<T = any>(path: string, qb?: QueryBuilder, events?: DocumentChangeType[]): Observable<T[]> {
-    return this.afs
-      .collection(path, (ref) => (qb ? qb.build(ref) : ref))
-      .snapshotChanges(events)
-      .pipe(
-        map((changes) => changes.map((c) => Object.assign({}, c.payload.doc.data(), { id: c.payload.doc.id } as any))),
-        (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
-      );
+    const collectionRef: any = collection(this.firestore, path);
+    qb ??= new QueryBuilder();
+
+    return collectionChanges(qb.build(collectionRef), { events }).pipe(
+      map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
+      (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+    );
   }
 
   docValueChanges<T>(path: string): Observable<T> {
-    return this.afs.doc(path).valueChanges({ idField: 'id' }) as Observable<any>;
+    const docRef: any = doc(this.firestore, path);
+    return docData<T>(docRef, { idField: 'id' });
   }
 
   /**

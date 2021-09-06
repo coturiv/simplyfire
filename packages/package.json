@@ -1,6 +1,6 @@
 {
   "name": "simplyfire",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "license": "MIT",
   "keywords": [
     "firestore",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "tslib": "^2.0.0",
+    "@firebase/firestore": "^3.0.1",
     "@firebase/firestore-types": "^2.2.0"
   }
 }

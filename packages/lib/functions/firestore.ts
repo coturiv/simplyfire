@@ -12,8 +12,10 @@ import { arrayToChunks } from '../utils';
 
 const CACHE_MAX_AGE = 0;
 
+type Firestore = FirebaseFirestore;
+
 export class FirestoreCloudService extends AbstractFirestoreApi {
-  private db: FirebaseFirestore;
+  private db: Firestore;
   private admin: any;
   private cache = new Map<string, any>();
 
@@ -140,8 +142,8 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     return totalCount;
   }
 
-  get batch(): WriteBatch {
-    return this.db.batch() as any;
+  get batch(): WriteBatch | any {
+    return this.db.batch();
   }
 
   get serverTimestamp() {

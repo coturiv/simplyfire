@@ -1,6 +1,6 @@
 # simplyfire
 
-A lightweight firestore api for firebae cloud functions & Angular.
+A lightweight firestore api for firebase cloud functions & Angular.
 
 ## Installation
 
@@ -81,3 +81,8 @@ export class UserService {
 | `increment(n?: number): FieldValue` | Firestore Increment. |
 | `get batch(): WriteBatch` | Getter of Firestore batch. |
 | `get serverTimestamp(): FieldValue` | Getter of Firestore timestamp. |
+
+### TODO
+
+- Collection Group
+- Missing APIs in Firebase 9
