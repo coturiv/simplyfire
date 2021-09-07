@@ -15,7 +15,7 @@ import type { CollectionReference, DocumentData, DocumentSnapshot, Query } from 
 type QueryWhere = Parameters<typeof where>;
 type QueryOrderBy = Parameters<typeof orderBy>;
 type QueryLeftJoin = [idField: string, collection: string, alias: string];
-type QueryCursor = DocumentSnapshot<unknown> | unknown[];
+type QueryCursor = [snapshot: DocumentSnapshot<unknown>] | unknown[];
 
 declare const window: any;
 
@@ -34,13 +34,13 @@ export class QueryBuilder {
     return this._leftJoins;
   }
 
-  where(where: QueryWhere) {
+  where(...where: QueryWhere) {
     this._where.push(where);
 
     return this;
   }
 
-  orderBy(orderBy: QueryOrderBy) {
+  orderBy(...orderBy: QueryOrderBy) {
     this._orderBy.push(orderBy);
 
     return this;
@@ -60,22 +60,22 @@ export class QueryBuilder {
     return this;
   }
 
-  startAt(startAt: QueryCursor) {
+  startAt(...startAt: QueryCursor) {
     this._startAt = startAt;
     return this;
   }
 
-  startAfter(startAfter: QueryCursor) {
+  startAfter(...startAfter: QueryCursor) {
     this._startAfter = startAfter;
     return this;
   }
 
-  endAt(endAt: QueryCursor) {
+  endAt(...endAt: QueryCursor) {
     this._endAt = endAt;
     return this;
   }
 
-  endBefore(endBefore: QueryCursor) {
+  endBefore(...endBefore: QueryCursor) {
     this._endBefore = endBefore;
     return this;
   }
@@ -90,10 +90,10 @@ export class QueryBuilder {
       ...this._orderBy.map((o) => orderBy(...o)),
       ...(this._limit ? [limit(this._limit)] : []),
       ...(this._limitToLast ? [limitToLast(this._limitToLast)] : []),
-      ...(this._startAt ? [startAt(this._startAt)] : []),
-      ...(this._startAfter ? [startAfter(this._startAfter)] : []),
-      ...(this._endAt ? [endAt(this._endAt)] : []),
-      ...(this._endBefore ? [endBefore(this._endBefore)] : [])
+      ...(this._startAt ? [startAt(...this._startAt)] : []),
+      ...(this._startAfter ? [startAfter(...this._startAfter)] : []),
+      ...(this._endAt ? [endAt(...this._endAt)] : []),
+      ...(this._endBefore ? [endBefore(...this._endBefore)] : [])
     ];
 
     return query(ref, ...queryConstraints);
