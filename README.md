@@ -2,6 +2,10 @@
 
 A lightweight firestore api for firebase cloud functions & Angular.
 
+![](https://github.com/coturiv/simplyfire/workflows/Build/badge.svg)
+[![npm version](https://img.shields.io/npm/v/simplyfire.svg)](https://www.npmjs.com/package/simplyfire)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/59e264bce65b40e2b019edcdee9509f2)](https://www.codacy.com/gh/coturiv/simplyfire/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=coturiv/simplyfire&amp;utm_campaign=Badge_Grade)
+
 ## Installation
 
 To use the library, install it via `npm` or `yarn`:
@@ -65,17 +69,17 @@ export class UserService {
 
 ### Firestore API
 
-
 | API | DESCRIPTION |
 | ------ | ------ |
 | `collection<T>(collection: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>` |  Get documents from the firestore. |
-| `collectionSnapshotChanges<T>(path: string, qb?: QueryBuilder, events?: DocumentChangeType[]): Observable<T[]>` |  Get documents from the firestore (*Client only*). |
-| `collectionValueChanges<T>(path: string, qb?: QueryBuilder): Observable<T[]>` |  Get documents from the firestore (*Client only*). |
-| `doc<T = any>(path: string, maxAge?: number): Promise<T>` | Get a document data from the firstore. |
-| `docValueChanges<T>(path: string): Observable<T>` | Get a document data from the firstore (*Client only*). |
-| `upsert(collection: string, data: { [key: string]: any }, opts?: SetOptions): Promise<string>` | Insert/or update document. (If data includes `id`, it's an insert operation, otherwise updating) |
-| `update(path: string, data: { [key: string]: any }): Promise<void>` | Update a document. (The `path` must includes document `id`.) |
-| `delete(path: string): Promise<void>` | Delete a document. |
+| `collectionGroup<T>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>` |  Get documents from the firestore(collectionGroup). |
+| `collectionSnapshotChanges<T>(collection: string, qb?: QueryBuilder, events?: DocumentChangeType[]): Observable<T[]>` |  Get documents from the firestore (*Client only*). |
+| `collectionValueChanges<T>(collection: string, qb?: QueryBuilder): Observable<T[]>` |  Get documents from the firestore (*Client only*). |
+| `doc<T = any>(docPath: string, maxAge?: number): Promise<T>` | Get a document data from the firstore. |
+| `docValueChanges<T>(docPath: string): Observable<T>` | Get a document data from the firstore (*Client only*). |
+| `upsert(collection: string, data: { id?: string; [key: string]: any }, opts?: SetOptions): Promise<string>` | Insert/or update document. (If data includes `id`, it's an update operation, otherwise inserts a document) |
+| `update(docPath: string, data: { [key: string]: any }): Promise<void>` | Update a document. (The `path` must includes document `id`.) |
+| `delete(docPath: string): Promise<void>` | Delete a document. |
 | `bulkUpsert(collection: string, docs: DocumentData[], opts?: SetOptions): Promise<void>` | Upsert bulk documents. (`batch` writes) |
 | `bulkDelete(collection: string, qb?: QueryBuilder): Promise<number>` | Delete bulk documents. (`batch` deletes) |
 | `increment(n?: number): FieldValue` | Firestore Increment. |
@@ -84,5 +88,4 @@ export class UserService {
 
 ### TODO
 
-- Collection Group
-- Missing APIs in Firebase 9
+- Missing APIs in @firebase/firestore 9
