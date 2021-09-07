@@ -42,7 +42,7 @@ export class QueryBuilder {
     return this;
   }
 
-  leftJoin(leftJoin: QueryLeftJoin) {
+  leftJoin(...leftJoin: QueryLeftJoin) {
     this._leftJoins.push(leftJoin);
   }
 
