@@ -1,14 +1,14 @@
-name: ci
 on:
   push:
-    branches-ignore:
-      - 'gh-pages'
-    tags:
-      - 'v*'
+    branches:
+      - main
     paths-ignore:
       - '**.md'
-env:
-  ci: true
+  pull_request:
+    branches:
+      - main
+
+name: Build
 
 jobs:
   build:
@@ -19,8 +19,3 @@ jobs:
           npm ci
           npm run lint
           npm run build
-
-      - if: contains(github.ref, 'main')
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
-          npm run publish
