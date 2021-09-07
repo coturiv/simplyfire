@@ -7,12 +7,13 @@ export abstract class AbstractFirestoreApi {
   // https://cloud.google.com/firestore/quotas#writes_and_transactions
   BATCH_MAX_WRITES = 500;
 
-  abstract collection<T = any>(collection: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
+  abstract collection<T = any>(path: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
+  abstract collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
   abstract doc<T = any>(path: string, maxAge?: number): Promise<T>;
 
   abstract upsert(collection: string, data: { [key: string]: any }, opts?: SetOptions): Promise<string>;
-  abstract update(path: string, data: { [key: string]: any }): Promise<void>;
-  abstract delete(path: string): Promise<void>;
+  abstract update(docPath: string, data: { [key: string]: any }): Promise<void>;
+  abstract delete(docPath: string): Promise<void>;
 
   abstract bulkUpsert(collection: string, docs: DocumentData[], opts?: SetOptions): Promise<void>;
   abstract bulkDelete(collection: string, qb?: QueryBuilder): Promise<number>;

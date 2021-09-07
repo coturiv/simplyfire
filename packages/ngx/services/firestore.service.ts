@@ -8,12 +8,22 @@ import {
   deleteDoc,
   collection,
   collectionData,
+  collectionGroup,
   collectionChanges,
   getDocs,
   documentId,
   increment,
   writeBatch,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  limit,
+  limitToLast,
+  startAt,
+  startAfter,
+  endAt,
+  endBefore
 } from '@angular/fire/firestore';
 import type { Firestore, DocumentChangeType, DocumentData, QuerySnapshot, SetOptions } from '@angular/fire/firestore';
 
@@ -22,6 +32,18 @@ import { map, switchMap, take } from 'rxjs/operators';
 
 import { QueryBuilder, AbstractFirestoreApi } from '../db';
 import { arrayToChunks } from '../utils';
+
+const queryOps = {
+  query,
+  where,
+  orderBy,
+  limit,
+  limitToLast,
+  startAt,
+  startAfter,
+  endAt,
+  endBefore
+};
 
 const CACHE_MAX_AGE = 5 * 60 * 1000;
 
@@ -47,7 +69,11 @@ export class FirestoreService extends AbstractFirestoreApi {
     return this.collectionWithCache(path, qb, maxAge).pipe(take(1)).toPromise();
   }
 
-  doc<T>(path: string, maxAge = CACHE_MAX_AGE): Promise<T> {
+  collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder, maxAge = CACHE_MAX_AGE): Promise<T[]> {
+    return this.collectionGroupWithCache(collectionId, qb, maxAge).pipe(take(1)).toPromise();
+  }
+
+  doc<T = any>(path: string, maxAge = CACHE_MAX_AGE): Promise<T> {
     return this.docWithCache(path, maxAge).pipe(take(1)).toPromise();
   }
 
@@ -69,8 +95,8 @@ export class FirestoreService extends AbstractFirestoreApi {
     return id;
   }
 
-  update(path: string, data: { [key: string]: any }) {
-    const docRef = doc(this.firestore, path);
+  update(docPath: string, data: { [key: string]: any }) {
+    const docRef = doc(this.firestore, docPath);
     const updatedTs = this.serverTimestamp;
 
     // ignore id
@@ -79,8 +105,8 @@ export class FirestoreService extends AbstractFirestoreApi {
     return updateDoc(docRef, Object.assign({}, data, { updatedTs }));
   }
 
-  delete(path: string) {
-    const docRef = doc(this.firestore, path);
+  delete(docPath: string) {
+    const docRef = doc(this.firestore, docPath);
     return deleteDoc(docRef);
   }
 
@@ -112,7 +138,7 @@ export class FirestoreService extends AbstractFirestoreApi {
 
     let totalCount = 0;
     const collectionRef = collection(this.firestore, path);
-    const snapshot: QuerySnapshot<DocumentData> = await getDocs(qb.build(collectionRef));
+    const snapshot: QuerySnapshot<DocumentData> = await getDocs(qb.exec(collectionRef, queryOps));
 
     // Due to a batch limitation, need to split docs array into chunks
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
@@ -156,7 +182,16 @@ export class FirestoreService extends AbstractFirestoreApi {
     const collectionRef = collection(this.firestore, path);
     qb ??= new QueryBuilder();
 
-    return collectionData(qb.build(collectionRef), { idField: 'id' }).pipe((s) =>
+    return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' }).pipe((s) =>
+      (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+    );
+  }
+
+  collectionGroupValueChanges<T = any>(collectionId: string, qb?: QueryBuilder): Observable<T[]> {
+    const collectionRef = collectionGroup(this.firestore, collectionId);
+    qb ??= new QueryBuilder();
+
+    return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' }).pipe((s) =>
       (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
   }
@@ -165,13 +200,27 @@ export class FirestoreService extends AbstractFirestoreApi {
     const collectionRef: any = collection(this.firestore, path);
     qb ??= new QueryBuilder();
 
-    return collectionChanges(qb.build(collectionRef), { events }).pipe(
+    return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
       map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
       (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
   }
 
-  docValueChanges<T>(path: string): Observable<T> {
+  collectionGroupSnapshotChanges<T = any>(
+    collectionId: string,
+    qb?: QueryBuilder,
+    events?: DocumentChangeType[]
+  ): Observable<T[]> {
+    const collectionRef: any = collectionGroup(this.firestore, collectionId);
+    qb ??= new QueryBuilder();
+
+    return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
+      map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
+      (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+    );
+  }
+
+  docValueChanges<T = any>(path: string): Observable<T> {
     const docRef: any = doc(this.firestore, path);
     return docData<T>(docRef, { idField: 'id' });
   }
@@ -183,6 +232,19 @@ export class FirestoreService extends AbstractFirestoreApi {
    */
   collectionWithCache<T = any>(path: string, qb?: QueryBuilder, maxAge?: number): Observable<T[]> {
     return this.fetchFromCache(path + (qb ? JSON.stringify(qb) : ''), this.collectionValueChanges<T>(path, qb), maxAge);
+  }
+
+  /**
+   * @experimental
+   *
+   * Cache collectionGroup data in memory
+   */
+  collectionGroupWithCache<T = any>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Observable<T[]> {
+    return this.fetchFromCache(
+      collectionId + (qb ? JSON.stringify(qb) : ''),
+      this.collectionGroupValueChanges<T>(collectionId, qb),
+      maxAge
+    );
   }
 
   /**

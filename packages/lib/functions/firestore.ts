@@ -10,14 +10,11 @@ import type {
 import { AbstractFirestoreApi, QueryBuilder } from '../../ngx/db';
 import { arrayToChunks } from '../utils';
 
-const CACHE_MAX_AGE = 0;
-
 type Firestore = FirebaseFirestore;
 
 export class FirestoreCloudService extends AbstractFirestoreApi {
   private db: Firestore;
   private admin: any;
-  private cache = new Map<string, any>();
 
   private static instance: FirestoreCloudService = null;
 
@@ -38,37 +35,19 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
   // -----------------------------------------------------------------------------------------------------
   // @ Abstract members
   // -----------------------------------------------------------------------------------------------------
-  async collection<T = any>(collection: string, qb?: QueryBuilder, maxAge = CACHE_MAX_AGE): Promise<T[]> {
-    const key = collection + (qb ? JSON.stringify(qb) : '');
-    const cached = this.cache.get(key);
-
-    if (maxAge === 0 || !cached || (maxAge && Date.now() - cached.lastRead > maxAge)) {
-      const data = (await this.collectionSnapshot(collection, qb)).docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as any)
-      );
-
-      // disable cache in the cloud functions
-      if (maxAge !== 0) {
-        this.cache.set(key, { lastRead: Date.now(), data });
-      }
-
-      return data;
-    }
-
-    return cached.data;
+  async collection<T = any>(collection: string, qb?: QueryBuilder): Promise<T[]> {
+    return (await this.collectionSnapshot(collection, qb)).docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
   }
 
-  async doc<T = any>(path: string, maxAge = CACHE_MAX_AGE): Promise<T> {
-    const cached = this.cache.get(path);
+  async collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder): Promise<T[]> {
+    return (await this.collectionGroupSnapshot(collectionId, qb)).docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() } as any)
+    );
+  }
 
-    if (maxAge === 0 || !cached || (maxAge && Date.now() - cached.lastRead > maxAge)) {
-      const snapshot = await this.docReference(path).get();
-      const data = (snapshot.exists && ({ id: snapshot.id, ...snapshot.data() } as any)) || null;
-
-      return this.cache.set(path, { lastRead: Date.now(), data }) && data;
-    }
-
-    return cached.data;
+  async doc<T = any>(path: string): Promise<T> {
+    const snapshot = await this.docReference(path).get();
+    return (snapshot.exists && ({ id: snapshot.id, ...snapshot.data() } as any)) || null;
   }
 
   async upsert(collection: string, data: { [key: string]: any }, opts: SetOptions = { merge: true }) {
@@ -104,11 +83,8 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
       const batch = this.batch;
 
       chunks.forEach((doc) => {
-        // eslint-disable-next-line prefer-const
         let { id, ...updata } = doc;
-        if (!id) {
-          id = this.db.collection(collection).doc().id;
-        }
+        id ??= this.db.collection(collection).doc().id;
 
         batch.set(this.docReference(`${collection}/${id}`), updata, { merge: true });
       });
@@ -171,7 +147,13 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
   collectionSnapshot(path: string, qb?: QueryBuilder): Promise<QuerySnapshot> {
     const collectionRef: any = this.db.collection(path);
 
-    return (qb ? qb.build(collectionRef) : collectionRef).get();
+    return (qb ? qb.exec(collectionRef) : collectionRef).get();
+  }
+
+  collectionGroupSnapshot(collectionId: string, qb?: QueryBuilder): Promise<QuerySnapshot> {
+    const groupRef: any = this.db.collectionGroup(collectionId);
+
+    return (qb ? qb.exec(groupRef) : groupRef).get();
   }
 
   docReference(path: string): DocumentReference<DocumentData> {

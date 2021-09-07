@@ -1,19 +1,15 @@
-import {
-  query,
-  where,
-  orderBy,
-  limit,
-  limitToLast,
-  startAt,
-  startAfter,
-  endAt,
-  endBefore,
-  QueryConstraint
-} from '@firebase/firestore';
-import type { CollectionReference, DocumentData, DocumentSnapshot, Query } from '@firebase/firestore';
+import type {
+  CollectionReference,
+  DocumentData,
+  DocumentSnapshot,
+  FieldPath,
+  OrderByDirection,
+  Query,
+  WhereFilterOp
+} from '@firebase/firestore-types';
 
-type QueryWhere = Parameters<typeof where>;
-type QueryOrderBy = Parameters<typeof orderBy>;
+type QueryWhere = [fieldPath: string | FieldPath, opStr: WhereFilterOp, value: unknown];
+type QueryOrderBy = [fieldPath: string | FieldPath, directionStr?: OrderByDirection];
 type QueryLeftJoin = [idField: string, collection: string, alias: string];
 type QueryCursor = [snapshot: DocumentSnapshot<unknown>] | unknown[];
 
@@ -80,12 +76,20 @@ export class QueryBuilder {
     return this;
   }
 
-  build(ref: CollectionReference<DocumentData>): Query<DocumentData> {
+  // Still have to use <any> type due to most interfaces of @google-cloud/firestore
+  // are not compatible with @firebase/firestore's interfaces.
+  exec(ref: CollectionReference<DocumentData> | any, queryOps?: { [key: string]: any }): Query<DocumentData> | any {
     if (typeof window === 'undefined') {
-      return this.buildQueryForCloud(ref);
+      return this.execQueryForCloud(ref);
     }
 
-    const queryConstraints: QueryConstraint[] = [
+    if (!queryOps) {
+      throw Error('invalid arguments');
+    }
+
+    const { query, where, orderBy, limit, limitToLast, startAt, startAfter, endAt, endBefore } = queryOps;
+
+    const queryConstraints = [
       ...this._where.map((w) => where(...w)),
       ...this._orderBy.map((o) => orderBy(...o)),
       ...(this._limit ? [limit(this._limit)] : []),
@@ -99,7 +103,7 @@ export class QueryBuilder {
     return query(ref, ...queryConstraints);
   }
 
-  private buildQueryForCloud(ref: any): Query<DocumentData> {
+  private execQueryForCloud(ref: CollectionReference<DocumentData>): Query<DocumentData> {
     let query = this._where.reduce((q, wh) => q.where(...wh), ref);
     query = this._orderBy.reduce((q, ob) => q.orderBy(...ob), query);
 
