@@ -94,10 +94,10 @@ export class QueryBuilder {
       ...this._orderBy.map((o) => orderBy(...o)),
       ...(this._limit ? [limit(this._limit)] : []),
       ...(this._limitToLast ? [limitToLast(this._limitToLast)] : []),
-      ...(this._startAt.every((i) => !!i) ? [startAt(...this._startAt)] : []),
-      ...(this._startAfter.every((i) => !!i) ? [startAfter(...this._startAfter)] : []),
-      ...(this._endAt.every((i) => !!i) ? [endAt(...this._endAt)] : []),
-      ...(this._endBefore.every((i) => !!i) ? [endBefore(...this._endBefore)] : [])
+      ...(this._startAt?.every((i) => !!i) ? [startAt(...this._startAt)] : []),
+      ...(this._startAfter?.every((i) => !!i) ? [startAfter(...this._startAfter)] : []),
+      ...(this._endAt?.every((i) => !!i) ? [endAt(...this._endAt)] : []),
+      ...(this._endBefore?.every((i) => !!i) ? [endBefore(...this._endBefore)] : [])
     ];
 
     return query(ref, ...queryConstraints);
