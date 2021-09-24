@@ -1,4 +1,11 @@
-import type { DocumentData, DocumentSnapshot, FieldValue, SetOptions, WriteBatch } from '@firebase/firestore-types';
+import type {
+  DocumentData,
+  DocumentSnapshot,
+  FieldValue,
+  SetOptions,
+  Transaction,
+  WriteBatch
+} from '@firebase/firestore-types';
 import { QueryBuilder } from './QueryBuilder';
 
 export abstract class AbstractFirestoreApi {
@@ -17,6 +24,7 @@ export abstract class AbstractFirestoreApi {
 
   abstract bulkUpsert(collection: string, docs: DocumentData[], opts?: SetOptions): Promise<void>;
   abstract bulkDelete(collection: string, qb?: QueryBuilder): Promise<number>;
+  abstract runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown>;
 
   abstract get batch(): WriteBatch;
   abstract get serverTimestamp(): FieldValue;
