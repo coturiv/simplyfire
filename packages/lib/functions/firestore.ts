@@ -4,7 +4,8 @@ import type {
   DocumentData,
   SetOptions,
   DocumentReference,
-  FirebaseFirestore
+  FirebaseFirestore,
+  Transaction
 } from '@firebase/firestore-types';
 
 import { AbstractFirestoreApi, QueryBuilder } from '../../ngx/db';
@@ -128,6 +129,10 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
 
   increment(n = 1) {
     return this.admin.firestore.FieldValue.increment(n);
+  }
+
+  runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown> {
+    return this.db.runTransaction(updateFunction);
   }
 
   // -----------------------------------------------------------------------------------------------------

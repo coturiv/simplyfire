@@ -23,9 +23,17 @@ import {
   startAt,
   startAfter,
   endAt,
-  endBefore
+  endBefore,
+  runTransaction
 } from '@angular/fire/firestore';
-import type { Firestore, DocumentChangeType, DocumentData, QuerySnapshot, SetOptions } from '@angular/fire/firestore';
+import type {
+  Firestore,
+  DocumentChangeType,
+  DocumentData,
+  QuerySnapshot,
+  SetOptions,
+  Transaction
+} from '@angular/fire/firestore';
 
 import { combineLatest, defer, Observable, of } from 'rxjs';
 import { map, switchMap, take } from 'rxjs/operators';
@@ -177,6 +185,10 @@ export class FirestoreService extends AbstractFirestoreApi {
    */
   increment(n = 1) {
     return increment(n);
+  }
+
+  runTransaction(updateFunction: (transaction: Transaction | any) => Promise<unknown>): Promise<unknown> {
+    return runTransaction(this.firestore, updateFunction);
   }
 
   // -----------------------------------------------------------------------------------------------------
