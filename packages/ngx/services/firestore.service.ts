@@ -3,6 +3,7 @@ import {
   getFirestore,
   doc,
   docData,
+  addDoc,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -11,7 +12,6 @@ import {
   collectionGroup,
   collectionChanges,
   getDocs,
-  documentId,
   increment,
   writeBatch,
   serverTimestamp,
@@ -77,20 +77,22 @@ export class FirestoreService extends AbstractFirestoreApi {
     return this.docWithCache(path, maxAge).pipe(take(1)).toPromise();
   }
 
-  async upsert(collection: string, data: { [key: string]: any }, opts?: SetOptions): Promise<string> {
+  async upsert(
+    collectionPath: string,
+    data: { [key: string]: any },
+    opts: SetOptions = { merge: true }
+  ): Promise<string> {
     const timestamp = this.serverTimestamp;
 
     let { id, ...updata } = data;
-    if (!id) {
-      id = documentId();
-      updata.createdTs = timestamp;
-    }
-
     updata.updatedTs = timestamp;
 
-    const docRef = doc(this.firestore, `${collection}/${id}`);
-
-    await setDoc(docRef, Object.assign({}, updata), opts);
+    if (id) {
+      await setDoc(doc(this.firestore, `${collectionPath}/${id}`), Object.assign({}, updata), opts);
+    } else {
+      updata.createdTs = timestamp;
+      id = (await addDoc(collection(this.firestore, collectionPath), updata)).id;
+    }
 
     return id;
   }
@@ -110,22 +112,25 @@ export class FirestoreService extends AbstractFirestoreApi {
     return deleteDoc(docRef);
   }
 
-  async bulkUpsert(collection: string, docs: DocumentData[], opts?: SetOptions): Promise<void> {
+  async bulkUpsert(collectionPath: string, docs: DocumentData[], opts: SetOptions = { merge: true }): Promise<void> {
     // Due to a batch limitation, need to split docs array into chunks
     for (const chunks of arrayToChunks(docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
       const timestamp = this.serverTimestamp;
 
-      chunks.forEach((doc) => {
+      chunks.forEach(async (doc) => {
         let { id, ...updata } = doc;
-        if (!id) {
-          id = documentId();
-          updata.createdTs = timestamp;
-        }
-
         updata.updatedTs = timestamp;
 
-        const docRef = doc(this.firestore, `${collection}/${id}`);
+        let docRef: any;
+
+        if (id) {
+          docRef = doc(this.firestore, `${collectionPath}/${id}`);
+        } else {
+          updata.createdTs = timestamp;
+          docRef = doc(collection(this.firestore, collectionPath));
+        }
+
         batch.set(docRef, updata, opts);
       });
       await batch.commit();
