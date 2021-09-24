@@ -82,7 +82,7 @@ export class FirestoreService extends AbstractFirestoreApi {
 
     let { id, ...updata } = data;
     if (!id) {
-      id = documentId;
+      id = documentId();
       updata.createdTs = timestamp;
     }
 
@@ -119,7 +119,7 @@ export class FirestoreService extends AbstractFirestoreApi {
       chunks.forEach((doc) => {
         let { id, ...updata } = doc;
         if (!id) {
-          id = documentId;
+          id = documentId();
           updata.createdTs = timestamp;
         }
 
