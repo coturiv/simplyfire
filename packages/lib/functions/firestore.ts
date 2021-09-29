@@ -47,7 +47,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
   }
 
   async doc<T = any>(path: string): Promise<T> {
-    const snapshot = await this.docReference(path).get();
+    const snapshot = await this.docRef(path).get();
     return (snapshot.exists && ({ id: snapshot.id, ...snapshot.data() } as any)) || null;
   }
 
@@ -62,17 +62,17 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     }
 
     updata.updatedTs = timestamp;
-    await this.docReference(`${collection}/${id}`).set(Object.assign({}, updata), opts);
+    await this.docRef(`${collection}/${id}`).set(Object.assign({}, updata), opts);
 
     return id;
   }
 
   async update(path: string, data: { [key: string]: any }) {
-    await this.docReference(path).update(data);
+    await this.docRef(path).update(data);
   }
 
   async delete(path: string) {
-    await this.docReference(path).delete();
+    await this.docRef(path).delete();
   }
 
   /**
@@ -87,7 +87,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
         let { id, ...updata } = doc;
         id ??= this.db.collection(collection).doc().id;
 
-        batch.set(this.docReference(`${collection}/${id}`), updata, { merge: true });
+        batch.set(this.docRef(`${collection}/${id}`), updata, { merge: true });
       });
       await batch.commit();
     }
@@ -161,7 +161,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     return (qb ? qb.exec(groupRef) : groupRef).get();
   }
 
-  docReference(path: string): DocumentReference<DocumentData> {
-    return this.db.doc(path) as any;
+  docRef(path: string): DocumentReference<DocumentData> {
+    return this.db.doc(path);
   }
 }
