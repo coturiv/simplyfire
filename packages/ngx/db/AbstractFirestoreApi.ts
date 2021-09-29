@@ -1,5 +1,6 @@
 import type {
   DocumentData,
+  DocumentReference,
   DocumentSnapshot,
   FieldValue,
   SetOptions,
@@ -17,6 +18,7 @@ export abstract class AbstractFirestoreApi {
   abstract collection<T = any>(path: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
   abstract collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
   abstract doc<T = any>(path: string, maxAge?: number): Promise<T>;
+  abstract docRef(docPath: string): DocumentReference<DocumentData>;
 
   abstract upsert(collection: string, data: { [key: string]: any }, opts?: SetOptions): Promise<string>;
   abstract update(docPath: string, data: { [key: string]: any }): Promise<void>;

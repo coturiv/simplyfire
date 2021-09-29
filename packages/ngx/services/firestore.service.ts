@@ -85,6 +85,10 @@ export class FirestoreService extends AbstractFirestoreApi {
     return this.docWithCache(path, maxAge).pipe(take(1)).toPromise();
   }
 
+  docRef(path: string) {
+    return doc(this.firestore, path) as any;
+  }
+
   async upsert(
     collectionPath: string,
     data: { [key: string]: any },
