@@ -191,6 +191,13 @@ export class FirestoreService extends AbstractFirestoreApi {
     return increment(n);
   }
 
+  /**
+   * Returns a generated Firestore Document Id.
+   */
+  createId(colPath?: string) {
+    return doc(collection(this.firestore, colPath ?? '_')).id;
+  }
+
   runTransaction(updateFunction: (transaction: Transaction | any) => Promise<unknown>): Promise<unknown> {
     return runTransaction(this.firestore, updateFunction);
   }
