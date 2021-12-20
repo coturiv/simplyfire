@@ -131,6 +131,13 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     return this.admin.firestore.FieldValue.increment(n);
   }
 
+  /**
+   * Returns a generated Firestore Document Id.
+   */
+  createId(colPath?: string) {
+    return this.db.collection(colPath ?? '_').doc().id;
+  }
+
   runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown> {
     return this.db.runTransaction(updateFunction);
   }

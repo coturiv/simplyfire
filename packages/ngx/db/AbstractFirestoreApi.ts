@@ -33,6 +33,8 @@ export abstract class AbstractFirestoreApi {
 
   abstract increment(n?: number): FieldValue;
 
+  abstract createId(collection?: string): string;
+
   getValueFromSnapshot<T = any>(snapshot: DocumentSnapshot): T {
     return (snapshot.exists ? snapshot.data() : null) as T;
   }
