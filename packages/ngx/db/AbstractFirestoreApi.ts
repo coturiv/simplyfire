@@ -3,6 +3,7 @@ import type {
   DocumentReference,
   DocumentSnapshot,
   FieldValue,
+  QuerySnapshot,
   SetOptions,
   Transaction,
   WriteBatch
@@ -17,6 +18,7 @@ export abstract class AbstractFirestoreApi {
 
   abstract collection<T = any>(path: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
   abstract collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Promise<T[]>;
+  abstract collectionSnapshot(path: string, qb?: QueryBuilder): Promise<QuerySnapshot<DocumentData>>;
   abstract doc<T = any>(path: string, maxAge?: number): Promise<T>;
   abstract docRef(docPath: string): DocumentReference<DocumentData>;
 
@@ -24,7 +26,11 @@ export abstract class AbstractFirestoreApi {
   abstract update(docPath: string, data: { [key: string]: any }): Promise<void>;
   abstract delete(docPath: string): Promise<void>;
 
-  abstract bulkUpsert(collection: string, docs: DocumentData[], opts?: SetOptions): Promise<void>;
+  abstract bulkUpsert(
+    collection: string,
+    data: DocumentData[] | { data: DocumentData; qb?: QueryBuilder },
+    opts?: SetOptions
+  ): Promise<number>;
   abstract bulkDelete(collection: string, qb?: QueryBuilder): Promise<number>;
   abstract runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown>;
 

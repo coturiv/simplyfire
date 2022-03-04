@@ -78,19 +78,50 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
   /**
    * Bulk update data
    */
-  async bulkUpsert(collection: string, docs: DocumentData[]) {
-    // Due to a batch limitation, need to split docs array into chunks
-    for (const chunks of arrayToChunks(docs, this.BATCH_MAX_WRITES)) {
-      const batch = this.batch;
+  async bulkUpsert(
+    path: string,
+    data: DocumentData[] | { data: DocumentData; qb?: QueryBuilder },
+    opts: SetOptions = { merge: true }
+  ): Promise<number> {
+    let totalCount = 0;
+    const promises = [];
 
-      chunks.forEach((doc) => {
-        let { id, ...updata } = doc;
-        id ??= this.db.collection(collection).doc().id;
+    if (Array.isArray(data)) {
+      // Due to a batch limitation, need to split docs array into chunks
+      for (const chunks of arrayToChunks(data, this.BATCH_MAX_WRITES)) {
+        const batch = this.batch;
 
-        batch.set(this.docRef(`${collection}/${id}`), updata, { merge: true });
-      });
-      await batch.commit();
+        chunks.forEach((doc) => {
+          let { id, ...updata } = doc;
+          id ??= this.db.collection(path).doc().id;
+
+          batch.set(this.docRef(`${path}/${id}`), updata, opts);
+        });
+        const p = batch.commit();
+        promises.push(p);
+
+        totalCount += chunks.length;
+      }
+    } else {
+      const snapshot = await this.collectionSnapshot(path, data.qb);
+
+      // Due to a batch limitation, need to split docs array into chunks
+      for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
+        const batch = this.batch;
+        const timestamp = this.serverTimestamp;
+
+        chunks.forEach((doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts));
+
+        const p = batch.commit();
+        promises.push(p);
+
+        totalCount += chunks.length;
+      }
     }
+
+    await Promise.all(promises);
+
+    return totalCount;
   }
 
   /**
@@ -102,19 +133,22 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
       qb.limit(maxSize);
     }
 
-    const snapshot: QuerySnapshot = await this.collectionSnapshot(collection, qb);
-
     let totalCount = 0;
+    const promises = [];
+    const snapshot: QuerySnapshot = await this.collectionSnapshot(collection, qb);
 
     // Due to a batch limitation, need to split docs array into chunks
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
 
       chunks.forEach((doc) => batch.delete(doc.ref));
-      await batch.commit();
+      const p = batch.commit();
+      promises.push(p);
 
       totalCount += chunks.length;
     }
+
+    await Promise.all(promises);
 
     return totalCount;
   }
