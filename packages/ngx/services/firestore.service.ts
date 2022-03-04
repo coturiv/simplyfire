@@ -124,29 +124,60 @@ export class FirestoreService extends AbstractFirestoreApi {
     return deleteDoc(docRef);
   }
 
-  async bulkUpsert(collectionPath: string, docs: DocumentData[], opts: SetOptions = { merge: true }): Promise<void> {
-    // Due to a batch limitation, need to split docs array into chunks
-    for (const chunks of arrayToChunks(docs, this.BATCH_MAX_WRITES)) {
-      const batch = this.batch;
-      const timestamp = this.serverTimestamp;
+  async bulkUpsert(
+    path: string,
+    data: DocumentData[] | { data: DocumentData; qb?: QueryBuilder },
+    opts: SetOptions = { merge: true }
+  ): Promise<number> {
+    let totalCount = 0;
+    const promises = [];
 
-      chunks.forEach(async (doc) => {
-        let { id, ...updata } = doc;
-        updata.updatedTs = timestamp;
+    if (Array.isArray(data)) {
+      // Due to a batch limitation, need to split docs array into chunks
+      for (const chunks of arrayToChunks(data, this.BATCH_MAX_WRITES)) {
+        const batch = this.batch;
+        const timestamp = this.serverTimestamp;
 
-        let docRef: any;
+        chunks.forEach(async (doc) => {
+          let { id, ...updata } = doc;
+          updata.updatedTs = timestamp;
 
-        if (id) {
-          docRef = doc(this.firestore, `${collectionPath}/${id}`);
-        } else {
-          updata.createdTs = timestamp;
-          docRef = doc(collection(this.firestore, collectionPath));
-        }
+          let docRef: any;
 
-        batch.set(docRef, updata, opts);
-      });
-      await batch.commit();
+          if (id) {
+            docRef = doc(this.firestore, `${path}/${id}`);
+          } else {
+            updata.createdTs = timestamp;
+            docRef = doc(collection(this.firestore, path));
+          }
+
+          batch.set(docRef, updata, opts);
+        });
+        const p = batch.commit();
+        promises.push(p);
+
+        totalCount += chunks.length;
+      }
+    } else {
+      const snapshot = await this.collectionSnapshot(path, data.qb);
+
+      // Due to a batch limitation, need to split docs array into chunks
+      for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
+        const batch = this.batch;
+        const timestamp = this.serverTimestamp;
+
+        chunks.forEach((doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts));
+
+        const p = batch.commit();
+        promises.push(p);
+
+        totalCount += chunks.length;
+      }
     }
+
+    await Promise.all(promises);
+
+    return totalCount;
   }
 
   async bulkDelete(path: string, qb?: QueryBuilder, maxSize = 1000): Promise<number> {
@@ -154,18 +185,22 @@ export class FirestoreService extends AbstractFirestoreApi {
     qb.limit(maxSize);
 
     let totalCount = 0;
-    const collectionRef = collection(this.firestore, path);
-    const snapshot: QuerySnapshot<DocumentData> = await getDocs(qb.exec(collectionRef, queryOps));
+    const promises = [];
+
+    const snapshot: QuerySnapshot<DocumentData> = await this.collectionSnapshot(path, qb);
 
     // Due to a batch limitation, need to split docs array into chunks
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
 
       chunks.forEach((doc) => batch.delete(doc.ref));
-      await batch.commit();
+      const p = batch.commit();
+      promises.push(p);
 
       totalCount += chunks.length;
     }
+
+    await Promise.all(promises);
 
     return totalCount;
   }
@@ -222,6 +257,13 @@ export class FirestoreService extends AbstractFirestoreApi {
     return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' }).pipe((s) =>
       (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
+  }
+
+  collectionSnapshot(path: string, qb?: QueryBuilder): Promise<QuerySnapshot<any> | any> {
+    qb ??= new QueryBuilder();
+
+    const collectionRef = collection(this.firestore, path);
+    return getDocs(qb.exec(collectionRef, queryOps));
   }
 
   collectionSnapshotChanges<T = any>(path: string, qb?: QueryBuilder, events?: DocumentChangeType[]): Observable<T[]> {
