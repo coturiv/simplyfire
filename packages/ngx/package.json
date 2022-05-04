@@ -1,16 +1,11 @@
 {
-  "ngPackage": {
-    "lib": {
-      "entryFile": "public-api.ts"
-    }
-  },
   "dependencies": {
     "tslib": "^2.0.0"
   },
   "peerDependencies": {
-    "@angular/common": "^12.0.0",
-    "@angular/core": "^12.0.0",
-    "@angular/fire": "^7.0.3",
+    "@angular/common": "^13.0.0",
+    "@angular/core": "^13.0.0",
+    "@angular/fire": "^7.3.0",
     "firebase": "^9.0.0",
     "rxjs": "~6.6.3"
   }
