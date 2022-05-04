@@ -5,7 +5,8 @@ import type {
   SetOptions,
   DocumentReference,
   FirebaseFirestore,
-  Transaction
+  Transaction,
+  CollectionReference
 } from '@firebase/firestore-types';
 
 import { AbstractFirestoreApi, QueryBuilder } from '../../ngx/db';
@@ -174,6 +175,12 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
 
   runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown> {
     return this.db.runTransaction(updateFunction);
+  }
+
+  // Recursively delete a reference and log the references of failures.
+  // https://github.com/googleapis/nodejs-firestore/pull/1494
+  recursiveDelete(ref: CollectionReference<unknown> | DocumentReference<unknown>, bulkWriter?: any) {
+    return (this.db as any).recursiveDelete(ref, bulkWriter);
   }
 
   // -----------------------------------------------------------------------------------------------------
