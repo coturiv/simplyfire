@@ -140,7 +140,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
 
-      chunks.forEach((doc) => bulkIds.push(doc.id) && batch.delete(doc.ref));
+      chunks.forEach((doc) => batch.delete(doc.ref) && bulkIds.push(doc.id));
       const p = batch.commit();
       promises.push(p);
     }
