@@ -83,8 +83,8 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     path: string,
     data: DocumentData[] | { data: DocumentData; qb?: QueryBuilder },
     opts: SetOptions = { merge: true }
-  ): Promise<number> {
-    let totalCount = 0;
+  ): Promise<string[]> {
+    const bulkIds = [];
     const promises = [];
 
     if (Array.isArray(data)) {
@@ -97,32 +97,30 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
           id ??= this.db.collection(path).doc().id;
 
           batch.set(this.docRef(`${path}/${id}`), updata, opts);
+          bulkIds.push(id);
         });
         const p = batch.commit();
         promises.push(p);
-
-        totalCount += chunks.length;
       }
     } else {
       const snapshot = await this.collectionSnapshot(path, data.qb);
-
       // Due to a batch limitation, need to split docs array into chunks
       for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach((doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts));
+        chunks.forEach(
+          (doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(doc.id)
+        );
 
         const p = batch.commit();
         promises.push(p);
-
-        totalCount += chunks.length;
       }
     }
 
     await Promise.all(promises);
 
-    return totalCount;
+    return bulkIds;
   }
 
   /**
@@ -134,7 +132,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
       qb.limit(maxSize);
     }
 
-    let totalCount = 0;
+    const bulkIds = [];
     const promises = [];
     const snapshot: QuerySnapshot = await this.collectionSnapshot(collection, qb);
 
@@ -142,16 +140,14 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
 
-      chunks.forEach((doc) => batch.delete(doc.ref));
+      chunks.forEach((doc) => bulkIds.push(doc.id) && batch.delete(doc.ref));
       const p = batch.commit();
       promises.push(p);
-
-      totalCount += chunks.length;
     }
 
     await Promise.all(promises);
 
-    return totalCount;
+    return bulkIds;
   }
 
   get batch(): WriteBatch {

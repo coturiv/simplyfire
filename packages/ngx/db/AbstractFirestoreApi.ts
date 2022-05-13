@@ -30,8 +30,8 @@ export abstract class AbstractFirestoreApi {
     collection: string,
     data: DocumentData[] | { data: DocumentData; qb?: QueryBuilder },
     opts?: SetOptions
-  ): Promise<number>;
-  abstract bulkDelete(collection: string, qb?: QueryBuilder): Promise<number>;
+  ): Promise<string[]>;
+  abstract bulkDelete(collection: string, qb?: QueryBuilder): Promise<string[]>;
   abstract runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown>;
 
   abstract get batch(): WriteBatch;
