@@ -5,7 +5,9 @@ import type {
   SetOptions,
   DocumentReference,
   FirebaseFirestore,
-  Transaction
+  Transaction,
+  CollectionReference,
+  Settings as FirestoreSettings
 } from '@firebase/firestore-types';
 
 import { AbstractFirestoreApi, QueryBuilder } from '../../ngx/db';
@@ -19,17 +21,18 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
 
   private static instance: FirestoreCloudService = null;
 
-  static getInstance(admin: any) {
+  static getInstance(admin: any, settings: FirestoreSettings = {}) {
     this.instance ??= new this();
-    this.instance.initialize(admin);
+    this.instance.initialize(admin, settings);
 
     return this.instance;
   }
 
-  initialize(admin: any) {
+  initialize(admin: any, settings: FirestoreSettings) {
     admin.initializeApp();
 
-    this.db = admin.firestore();
+    this.db = admin.firestore() as Firestore;
+    this.db.settings(settings);
     this.admin = admin;
   }
 
@@ -82,8 +85,8 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     path: string,
     data: DocumentData[] | { data: DocumentData; qb?: QueryBuilder },
     opts: SetOptions = { merge: true }
-  ): Promise<number> {
-    let totalCount = 0;
+  ): Promise<string[]> {
+    const bulkIds = [];
     const promises = [];
 
     if (Array.isArray(data)) {
@@ -96,32 +99,30 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
           id ??= this.db.collection(path).doc().id;
 
           batch.set(this.docRef(`${path}/${id}`), updata, opts);
+          bulkIds.push(id);
         });
         const p = batch.commit();
         promises.push(p);
-
-        totalCount += chunks.length;
       }
     } else {
       const snapshot = await this.collectionSnapshot(path, data.qb);
-
       // Due to a batch limitation, need to split docs array into chunks
       for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach((doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts));
+        chunks.forEach(
+          (doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(doc.id)
+        );
 
         const p = batch.commit();
         promises.push(p);
-
-        totalCount += chunks.length;
       }
     }
 
     await Promise.all(promises);
 
-    return totalCount;
+    return bulkIds;
   }
 
   /**
@@ -133,7 +134,7 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
       qb.limit(maxSize);
     }
 
-    let totalCount = 0;
+    const bulkIds = [];
     const promises = [];
     const snapshot: QuerySnapshot = await this.collectionSnapshot(collection, qb);
 
@@ -141,16 +142,14 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
 
-      chunks.forEach((doc) => batch.delete(doc.ref));
+      chunks.forEach((doc) => batch.delete(doc.ref) && bulkIds.push(doc.id));
       const p = batch.commit();
       promises.push(p);
-
-      totalCount += chunks.length;
     }
 
     await Promise.all(promises);
 
-    return totalCount;
+    return bulkIds;
   }
 
   get batch(): WriteBatch {
@@ -174,6 +173,12 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
 
   runTransaction(updateFunction: (transaction: Transaction) => Promise<unknown>): Promise<unknown> {
     return this.db.runTransaction(updateFunction);
+  }
+
+  // Recursively delete a reference and log the references of failures.
+  // https://github.com/googleapis/nodejs-firestore/pull/1494
+  recursiveDelete(ref: CollectionReference<unknown> | DocumentReference<unknown>, bulkWriter?: any) {
+    return (this.db as any).recursiveDelete(ref, bulkWriter);
   }
 
   // -----------------------------------------------------------------------------------------------------
