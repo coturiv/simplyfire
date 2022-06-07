@@ -35,7 +35,7 @@ import type {
   Transaction
 } from '@angular/fire/firestore';
 
-import { combineLatest, defer, Observable, of } from 'rxjs';
+import { combineLatest, defer, lastValueFrom, Observable, of } from 'rxjs';
 import { map, switchMap, take } from 'rxjs/operators';
 
 import { QueryBuilder, AbstractFirestoreApi } from '../db';
@@ -74,15 +74,15 @@ export class FirestoreService extends AbstractFirestoreApi {
   // -----------------------------------------------------------------------------------------------------
 
   collection<T = any>(path: string, qb?: QueryBuilder, maxAge = CACHE_MAX_AGE): Promise<T[]> {
-    return this.collectionWithCache(path, qb, maxAge).pipe(take(1)).toPromise();
+    return lastValueFrom(this.collectionWithCache(path, qb, maxAge).pipe(take(1)));
   }
 
   collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder, maxAge = CACHE_MAX_AGE): Promise<T[]> {
-    return this.collectionGroupWithCache(collectionId, qb, maxAge).pipe(take(1)).toPromise();
+    return lastValueFrom(this.collectionGroupWithCache(collectionId, qb, maxAge).pipe(take(1)));
   }
 
   doc<T = any>(path: string, maxAge = CACHE_MAX_AGE): Promise<T> {
-    return this.docWithCache(path, maxAge).pipe(take(1)).toPromise();
+    return lastValueFrom(this.docWithCache(path, maxAge).pipe(take(1)));
   }
 
   docRef(path: string) {

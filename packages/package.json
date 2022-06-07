@@ -11,7 +11,7 @@
     "url": "https://github.com/coturiv/simplyfire.git"
   },
   "dependencies": {
-    "tslib": "^2.0.0",
+    "tslib": "^2.4.0",
     "@firebase/firestore-types": "^2.5.0"
   }
 }
