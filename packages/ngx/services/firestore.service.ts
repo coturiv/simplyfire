@@ -102,7 +102,7 @@ export class FirestoreService extends AbstractFirestoreApi {
     if (id) {
       await setDoc(doc(this.firestore, `${collectionPath}/${id}`), Object.assign({}, updata), opts);
     } else {
-      updata.createdTs = timestamp;
+      updata.createdTs ??= timestamp;
       id = (await addDoc(collection(this.firestore, collectionPath), updata)).id;
     }
 
@@ -138,8 +138,7 @@ export class FirestoreService extends AbstractFirestoreApi {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach(async (doc) => {
-          let { id, ...updata } = doc;
+        chunks.forEach(async ({ id, ...updata }) => {
           updata.updatedTs = timestamp;
 
           let docRef: any;
@@ -147,7 +146,7 @@ export class FirestoreService extends AbstractFirestoreApi {
           if (id) {
             docRef = doc(this.firestore, `${path}/${id}`);
           } else {
-            updata.createdTs = timestamp;
+            updata.createdTs ??= timestamp;
             docRef = doc(collection(this.firestore, path));
           }
 
