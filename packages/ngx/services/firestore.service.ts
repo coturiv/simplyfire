@@ -97,6 +97,7 @@ export class FirestoreService extends AbstractFirestoreApi {
     const timestamp = this.serverTimestamp;
 
     let { id, ...updata } = data;
+    updata.createdTs ??= timestamp;
     updata.updatedTs = timestamp;
 
     if (id) {
@@ -138,8 +139,8 @@ export class FirestoreService extends AbstractFirestoreApi {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach(async (doc) => {
-          let { id, ...updata } = doc;
+        chunks.forEach(async ({ id, ...updata }) => {
+          updata.createdTs ??= timestamp;
           updata.updatedTs = timestamp;
 
           let docRef: any;
@@ -147,7 +148,6 @@ export class FirestoreService extends AbstractFirestoreApi {
           if (id) {
             docRef = doc(this.firestore, `${path}/${id}`);
           } else {
-            updata.createdTs = timestamp;
             docRef = doc(collection(this.firestore, path));
           }
 
@@ -166,9 +166,7 @@ export class FirestoreService extends AbstractFirestoreApi {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach(
-          (doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(doc.id)
-        );
+        chunks.forEach((d) => batch.set(d.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(d.id));
 
         const p = batch.commit();
         promises.push(p);
@@ -193,7 +191,7 @@ export class FirestoreService extends AbstractFirestoreApi {
     for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
       const batch = this.batch;
 
-      chunks.forEach((doc) => batch.delete(doc.ref) && bulkIds.push(doc.id));
+      chunks.forEach((d) => batch.delete(d.ref) && bulkIds.push(d.id));
       const p = batch.commit();
       promises.push(p);
     }

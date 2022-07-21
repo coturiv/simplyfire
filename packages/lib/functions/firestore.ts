@@ -59,9 +59,10 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
 
     // eslint-disable-next-line prefer-const
     let { id, ...updata } = data;
+    updata.createdTs ??= timestamp;
+
     if (!id) {
       id = this.db.collection(collection).doc().id;
-      updata.createdTs = timestamp;
     }
 
     updata.updatedTs = timestamp;
@@ -89,14 +90,18 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
     const bulkIds = [];
     const promises = [];
 
+    const timestamp = this.serverTimestamp;
+
     if (Array.isArray(data)) {
       // Due to a batch limitation, need to split docs array into chunks
       for (const chunks of arrayToChunks(data, this.BATCH_MAX_WRITES)) {
         const batch = this.batch;
 
-        chunks.forEach((doc) => {
-          let { id, ...updata } = doc;
+        chunks.forEach((d) => {
+          let { id, ...updata } = d;
           id ??= this.db.collection(path).doc().id;
+          updata.createdTs ??= timestamp;
+          updata.updatedTs = timestamp;
 
           batch.set(this.docRef(`${path}/${id}`), updata, opts);
           bulkIds.push(id);
@@ -109,11 +114,10 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
       // Due to a batch limitation, need to split docs array into chunks
       for (const chunks of arrayToChunks(snapshot.docs, this.BATCH_MAX_WRITES)) {
         const batch = this.batch;
-        const timestamp = this.serverTimestamp;
 
-        chunks.forEach(
-          (doc) => batch.set(doc.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(doc.id)
-        );
+        chunks.forEach((d) => {
+          batch.set(d.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(d.id);
+        });
 
         const p = batch.commit();
         promises.push(p);
