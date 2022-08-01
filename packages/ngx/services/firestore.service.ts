@@ -60,8 +60,8 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
 })
 export class FirestoreService extends AbstractFirestoreApi {
   get firestore(): Firestore {
-    return getFirestore()
-  };
+    return getFirestore();
+  }
 
   private cache = new Map<string, any>();
 
