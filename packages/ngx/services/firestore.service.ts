@@ -59,15 +59,11 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
   providedIn: 'root'
 })
 export class FirestoreService extends AbstractFirestoreApi {
-  firestore: Firestore;
+  get firestore(): Firestore {
+    return getFirestore()
+  };
 
   private cache = new Map<string, any>();
-
-  constructor() {
-    super();
-
-    this.firestore = getFirestore();
-  }
 
   // -----------------------------------------------------------------------------------------------------
   // @ Abstract members
@@ -101,9 +97,8 @@ export class FirestoreService extends AbstractFirestoreApi {
     updata.updatedTs = timestamp;
 
     if (id) {
-      await setDoc(doc(this.firestore, `${collectionPath}/${id}`), Object.assign({}, updata), opts);
+      await setDoc(this.docRef(`${collectionPath}/${id}`), Object.assign({}, updata), opts);
     } else {
-      updata.createdTs ??= timestamp;
       id = (await addDoc(collection(this.firestore, collectionPath), updata)).id;
     }
 
@@ -111,18 +106,16 @@ export class FirestoreService extends AbstractFirestoreApi {
   }
 
   update(docPath: string, data: { [key: string]: any }) {
-    const docRef = doc(this.firestore, docPath);
     const updatedTs = this.serverTimestamp;
 
     // ignore id
     delete data['id'];
 
-    return updateDoc(docRef, Object.assign({}, data, { updatedTs }));
+    return updateDoc(this.docRef(docPath), Object.assign({}, data, { updatedTs }));
   }
 
   delete(docPath: string) {
-    const docRef = doc(this.firestore, docPath);
-    return deleteDoc(docRef);
+    return deleteDoc(this.docRef(docPath));
   }
 
   async bulkUpsert(
@@ -146,7 +139,7 @@ export class FirestoreService extends AbstractFirestoreApi {
           let docRef: any;
 
           if (id) {
-            docRef = doc(this.firestore, `${path}/${id}`);
+            docRef = this.docRef(`${path}/${id}`);
           } else {
             docRef = doc(collection(this.firestore, path));
           }
