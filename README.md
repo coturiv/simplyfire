@@ -85,7 +85,3 @@ export class UserService {
 | `increment(n?: number): FieldValue` | Firestore Increment. |
 | `get batch(): WriteBatch` | Getter of Firestore batch. |
 | `get serverTimestamp(): FieldValue` | Getter of Firestore timestamp. |
-
-### TODO
-
-- Missing APIs in @firebase/firestore 9
