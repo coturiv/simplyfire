@@ -24,7 +24,8 @@ import {
   startAfter,
   endAt,
   endBefore,
-  runTransaction
+  runTransaction,
+  documentId
 } from '@angular/fire/firestore';
 import type {
   Firestore,
@@ -339,22 +340,41 @@ const leftJoin = (fs: FirestoreService, key: string, collection: string, alias: 
         switchMap((data) => {
           ret = data;
 
-          if (Array.isArray(data)) {
-            const docs$ = (ret as any[]).filter((i) => i[key]).map((i) => fs.docWithCache(`${collection}/${i[key]}`));
+          const fetchJoinData = (id: string | string[]) => {
+            if (Array.isArray(id)) {
+              const qb = new QueryBuilder();
+              qb.where(documentId(), 'in', id);
+              return fs.collectionWithCache(collection, qb, maxAge);
+            }
 
+            return fs.docWithCache(`${collection}/${id}`, maxAge);
+          };
+
+          if (Array.isArray(data)) {
+            const docs$ = (ret as any[]).filter((i) => i[key]).map((i) => fetchJoinData(i[key]));
             return docs$.length ? combineLatest(docs$) : of([]);
           }
 
-          return data && data[key] ? fs.docWithCache(`${collection}/${data[key]}`, maxAge) : of(null);
+          return data && data[key] ? fetchJoinData(data[key]) : of(null);
         }),
         map((joins) => {
           if (Array.isArray(ret)) {
-            return ret.map((i) => {
-              if (i[key]) {
-                i[alias] = joins.filter((j) => j?.id === i[key])[0];
+            return ret.map((r) => {
+              const id = r[key];
+              if (id) {
+                if (Array.isArray(id)) {
+                  r[alias] = joins
+                    .filter(
+                      (j: any) =>
+                        Array.isArray(j) && JSON.stringify(j.map((jj) => jj.id).sort()) === JSON.stringify(id.sort())
+                    )
+                    .pop();
+                } else {
+                  r[alias] = joins.filter((j: any) => j?.id === id).pop();
+                }
               }
 
-              return i;
+              return r;
             });
           }
 
