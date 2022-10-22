@@ -316,6 +316,16 @@ export class FirestoreService extends AbstractFirestoreApi {
     return this.fetchFromCache(path, this.docValueChanges(path), maxAge);
   }
 
+  /**
+   * @experimental
+   *
+   * Delete cached data from the memory
+   */
+  deleteCache(path: string, qb?: QueryBuilder) {
+    const key = path + (qb ? JSON.stringify(qb) : '');
+    return this.cache.delete(key);
+  }
+
   private fetchFromCache(key: string, source: Observable<any>, maxAge: number) {
     const cached = this.cache.get(key);
 

@@ -1,6 +1,6 @@
 {
   "name": "simplyfire",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "scripts": {
     "build": "ng build --configuration production",
     "postbuild": "cp README.md dist",
