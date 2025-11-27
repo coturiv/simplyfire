@@ -133,4 +133,35 @@ export class QueryBuilder {
 
     return query;
   }
+
+  toJSON() {
+    const s = (v: any): any => {
+      if (Array.isArray(v)) return v.map(s);
+      if (!v || typeof v !== 'object') return v;
+      const path = (v as any).path ?? (v as any).ref?.path;
+      if (typeof path === 'string') return path;
+      const id = (v as any).id;
+      if (typeof id === 'string') return id;
+      const toMillis = (v as any).toMillis;
+      if (typeof toMillis === 'function') return toMillis.call(v);
+      const toString = (v as any).toString;
+      if (typeof toString === 'function') return toString.call(v);
+      try {
+        return JSON.stringify(v);
+      } catch {
+        return String(v);
+      }
+    };
+    return {
+      where: this._where.map(([fp, op, val]) => [s(fp), op, s(val)]),
+      orderBy: this._orderBy.map(([fp, dir]) => [s(fp), dir]),
+      joins: this._leftJoins,
+      limit: this._limit,
+      limitToLast: this._limitToLast,
+      startAt: s(this._startAt),
+      startAfter: s(this._startAfter),
+      endAt: s(this._endAt),
+      endBefore: s(this._endBefore)
+    };
+  }
 }

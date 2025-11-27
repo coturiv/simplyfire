@@ -231,20 +231,23 @@ export class FirestoreService extends AbstractFirestoreApi {
   // @ Custom methods
   // -----------------------------------------------------------------------------------------------------
 
-  collectionValueChanges<T = any>(path: string, qb?: QueryBuilder): Observable<T[]> {
+  collectionValueChanges<T extends { id: string } = any>(path: string, qb?: QueryBuilder): Observable<T[]> {
     const collectionRef = collection(this.firestore, path);
     qb ??= new QueryBuilder();
 
-    return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' }).pipe((s) =>
+    return collectionData<T>(qb.exec(collectionRef, queryOps), { idField: 'id' as keyof T }).pipe((s) =>
       (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
   }
 
-  collectionGroupValueChanges<T = any>(collectionId: string, qb?: QueryBuilder): Observable<T[]> {
+  collectionGroupValueChanges<T extends { id: string } = any>(
+    collectionId: string,
+    qb?: QueryBuilder
+  ): Observable<T[]> {
     const collectionRef = collectionGroup(this.firestore, collectionId);
     qb ??= new QueryBuilder();
 
-    return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' }).pipe((s) =>
+    return collectionData<T>(qb.exec(collectionRef, queryOps), { idField: 'id' as keyof T }).pipe((s) =>
       (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
   }
@@ -280,9 +283,9 @@ export class FirestoreService extends AbstractFirestoreApi {
     );
   }
 
-  docValueChanges<T = any>(path: string): Observable<T> {
+  docValueChanges<T extends { id: string } = any>(path: string): Observable<T> {
     const docRef: any = doc(this.firestore, path);
-    return docData<T>(docRef, { idField: 'id' });
+    return docData<T>(docRef, { idField: 'id' as keyof T });
   }
 
   /**
@@ -290,8 +293,12 @@ export class FirestoreService extends AbstractFirestoreApi {
    *
    * Cache collection data in memory
    */
-  collectionWithCache<T = any>(path: string, qb?: QueryBuilder, maxAge?: number): Observable<T[]> {
-    return this.fetchFromCache(path + (qb ? JSON.stringify(qb) : ''), this.collectionValueChanges<T>(path, qb), maxAge);
+  collectionWithCache<T extends { id: string } = any>(
+    path: string,
+    qb?: QueryBuilder,
+    maxAge?: number
+  ): Observable<T[]> {
+    return this.fetchFromCache(this.makeCacheKey(path, qb), this.collectionValueChanges<T>(path, qb), maxAge);
   }
 
   /**
@@ -299,9 +306,13 @@ export class FirestoreService extends AbstractFirestoreApi {
    *
    * Cache collectionGroup data in memory
    */
-  collectionGroupWithCache<T = any>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Observable<T[]> {
+  collectionGroupWithCache<T extends { id: string } = any>(
+    collectionId: string,
+    qb?: QueryBuilder,
+    maxAge?: number
+  ): Observable<T[]> {
     return this.fetchFromCache(
-      collectionId + (qb ? JSON.stringify(qb) : ''),
+      this.makeCacheKey(collectionId, qb),
       this.collectionGroupValueChanges<T>(collectionId, qb),
       maxAge
     );
@@ -322,7 +333,7 @@ export class FirestoreService extends AbstractFirestoreApi {
    * Delete cached data from the memory
    */
   deleteCache(path: string, qb?: QueryBuilder) {
-    const key = path + (qb ? JSON.stringify(qb) : '');
+    const key = this.makeCacheKey(path, qb);
     return this.cache.delete(key);
   }
 
@@ -334,6 +345,11 @@ export class FirestoreService extends AbstractFirestoreApi {
     }
 
     return of(cached.data);
+  }
+
+  private makeCacheKey(path: string, qb?: QueryBuilder): string {
+    const q = qb ? (typeof (qb as any).toJSON === 'function' ? (qb as any).toJSON() : qb) : null;
+    return path + (q ? JSON.stringify(q) : '');
   }
 }
 

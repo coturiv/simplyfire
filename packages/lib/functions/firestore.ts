@@ -40,12 +40,12 @@ export class FirestoreCloudService extends AbstractFirestoreApi {
   // @ Abstract members
   // -----------------------------------------------------------------------------------------------------
   async collection<T = any>(collection: string, qb?: QueryBuilder): Promise<T[]> {
-    return (await this.collectionSnapshot(collection, qb)).docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
+    return (await this.collectionSnapshot(collection, qb)).docs.map((doc) => ({ id: doc.id, ...doc.data() }) as any);
   }
 
   async collectionGroup<T = any>(collectionId: string, qb?: QueryBuilder): Promise<T[]> {
     return (await this.collectionGroupSnapshot(collectionId, qb)).docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() } as any)
+      (doc) => ({ id: doc.id, ...doc.data() }) as any
     );
   }
 

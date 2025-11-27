@@ -1,0 +1,33 @@
+{
+  "extends": [
+    "config:base",
+    "schedule:weekly",
+    ":preserveSemverRanges",
+    ":disableDevDependencies",
+    ":disableDependencyDashboard"
+  ],
+  "automerge": false,
+  "rebaseStalePrs": true,
+  "separateMajorMinor": true,
+  "groupName": "all dependencies",
+  "groupSlug": "all",
+  "labels": [
+    "deps"
+  ],
+  "assignees": [
+    "coturiv"
+  ],
+  "reviewers": [
+    "coturiv"
+  ],
+  "branchPrefix": "deps/",
+  "packageRules": [
+    {
+      "packagePatterns": [
+        "*"
+      ],
+      "groupName": "all dependencies",
+      "groupSlug": "all"
+    }
+  ]
+}
