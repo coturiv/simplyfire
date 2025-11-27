@@ -28,11 +28,16 @@ jobs:
           tag_name: ${{ github.ref_name }}
           release_name: ${{ github.ref_name }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to NPM
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
-          npm publish
+          cd dist
+          if [[ "${{ github.ref_name }}" == *"-rc"* ]]; then
+            npm publish --tag rc
+          else
+            npm publish
+          fi
