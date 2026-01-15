@@ -1,6 +1,6 @@
 {
   "name": "simplyfire",
-  "version": "0.6.0-rc.0",
+  "version": "0.6.0",
   "scripts": {
     "build": "ng build --configuration production",
     "postbuild": "cp README.md dist",
@@ -15,7 +15,7 @@
     "@angular/core": "^20.0.0",
     "@angular/fire": "^20.0.1",
     "@angular/platform-browser": "^20.0.0",
-    "firebase": "^10.14.0",
+    "firebase": "^11.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.4.0"
   },
@@ -42,6 +42,7 @@
     "ng-packagr": "^20.0.0",
     "prettier": "^3.3.3",
     "typescript": "5.8.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "yargs": "^17.7.2"
   }
 }

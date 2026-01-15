@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   getFirestore,
   doc,
@@ -264,7 +265,7 @@ export class FirestoreService extends AbstractFirestoreApi {
     qb ??= new QueryBuilder();
 
     return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
-      map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
+      map((changes: any[]) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
       (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
   }
@@ -278,7 +279,7 @@ export class FirestoreService extends AbstractFirestoreApi {
     qb ??= new QueryBuilder();
 
     return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
-      map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
+      map((changes: any[]) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
       (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
     );
   }
@@ -286,6 +287,18 @@ export class FirestoreService extends AbstractFirestoreApi {
   docValueChanges<T extends { id: string } = any>(path: string): Observable<T> {
     const docRef: any = doc(this.firestore, path);
     return docData<T>(docRef, { idField: 'id' as keyof T });
+  }
+
+  collectionSignal<T extends { id: string } = any>(path: string, qb?: QueryBuilder): Signal<T[]> {
+    return toSignal(this.collectionValueChanges<T>(path, qb), { initialValue: [] as T[] });
+  }
+
+  collectionGroupSignal<T extends { id: string } = any>(collectionId: string, qb?: QueryBuilder): Signal<T[]> {
+    return toSignal(this.collectionGroupValueChanges<T>(collectionId, qb), { initialValue: [] as T[] });
+  }
+
+  docSignal<T extends { id: string } = any>(path: string): Signal<T | null> {
+    return toSignal(this.docValueChanges<T>(path), { initialValue: null as T | null });
   }
 
   /**
