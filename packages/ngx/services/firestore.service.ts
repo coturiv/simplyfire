@@ -1,5 +1,4 @@
-import { Injectable, Signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Injectable, EnvironmentInjector, inject, runInInjectionContext } from '@angular/core';
 import {
   getFirestore,
   doc,
@@ -61,8 +60,14 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
   providedIn: 'root'
 })
 export class FirestoreService extends AbstractFirestoreApi {
+  private injector = inject(EnvironmentInjector);
+
+  private run<T>(fn: () => T): T {
+    return runInInjectionContext(this.injector, fn);
+  }
+
   get firestore(): Firestore {
-    return getFirestore();
+    return this.run(() => getFirestore());
   }
 
   private cache = new Map<string, any>();
@@ -84,7 +89,7 @@ export class FirestoreService extends AbstractFirestoreApi {
   }
 
   docRef(path: string) {
-    return doc(this.firestore, path) as any;
+    return this.run(() => doc(this.firestore, path) as any);
   }
 
   async upsert(
@@ -99,9 +104,13 @@ export class FirestoreService extends AbstractFirestoreApi {
     updata.updatedTs = timestamp;
 
     if (id) {
-      await setDoc(this.docRef(`${collectionPath}/${id}`), Object.assign({}, updata), opts);
+      await this.run(() =>
+        setDoc(this.docRef(`${collectionPath}/${id}`), Object.assign({}, updata), opts)
+      );
     } else {
-      id = (await addDoc(collection(this.firestore, collectionPath), updata)).id;
+      id = (await this.run(() =>
+        addDoc(collection(this.firestore, collectionPath), updata)
+      )).id;
     }
 
     return id;
@@ -113,11 +122,13 @@ export class FirestoreService extends AbstractFirestoreApi {
     // ignore id
     delete data['id'];
 
-    return updateDoc(this.docRef(docPath), Object.assign({}, data, { updatedTs }));
+    return this.run(() =>
+      updateDoc(this.docRef(docPath), Object.assign({}, data, { updatedTs }))
+    );
   }
 
   delete(docPath: string) {
-    return deleteDoc(this.docRef(docPath));
+    return this.run(() => deleteDoc(this.docRef(docPath)));
   }
 
   async bulkUpsert(
@@ -134,7 +145,7 @@ export class FirestoreService extends AbstractFirestoreApi {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach(async ({ id, ...updata }) => {
+        chunks.forEach(({ id, ...updata }) => {
           updata.createdTs ??= timestamp;
           updata.updatedTs = timestamp;
 
@@ -161,7 +172,9 @@ export class FirestoreService extends AbstractFirestoreApi {
         const batch = this.batch;
         const timestamp = this.serverTimestamp;
 
-        chunks.forEach((d) => batch.set(d.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(d.id));
+        chunks.forEach((d) =>
+          batch.set(d.ref, { updatedTs: timestamp, ...data.data }, opts) && bulkIds.push(d.id)
+        );
 
         const p = batch.commit();
         promises.push(p);
@@ -200,74 +213,79 @@ export class FirestoreService extends AbstractFirestoreApi {
    * write batch
    */
   get batch() {
-    return writeBatch(this.firestore) as any;
+    return this.run(() => writeBatch(this.firestore) as any);
   }
 
   /**
    * firestore timestamp
    */
   get serverTimestamp() {
-    return serverTimestamp();
+    return this.run(() => serverTimestamp());
   }
 
   /**
    * FieldValue increment
    */
   increment(n = 1) {
-    return increment(n);
+    return this.run(() => increment(n));
   }
 
   /**
    * Returns a generated Firestore Document Id.
    */
   createId(colPath?: string) {
-    return doc(collection(this.firestore, colPath ?? '_')).id;
+    return this.run(() => doc(collection(this.firestore, colPath ?? '_')).id);
   }
 
   runTransaction(updateFunction: (transaction: Transaction | any) => Promise<unknown>): Promise<unknown> {
-    return runTransaction(this.firestore, updateFunction);
+    return this.run(() => runTransaction(this.firestore, updateFunction));
   }
 
   // -----------------------------------------------------------------------------------------------------
   // @ Custom methods
   // -----------------------------------------------------------------------------------------------------
 
-  collectionValueChanges<T extends { id: string } = any>(path: string, qb?: QueryBuilder): Observable<T[]> {
-    const collectionRef = collection(this.firestore, path);
+  collectionValueChanges<T = any>(path: string, qb?: QueryBuilder): Observable<T[]> {
     qb ??= new QueryBuilder();
 
-    return collectionData<T>(qb.exec(collectionRef, queryOps), { idField: 'id' as keyof T }).pipe((s) =>
-      (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
-    );
+    return this.run(() => {
+      const collectionRef = collection(this.firestore, path);
+      return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' } as any).pipe((s) =>
+        (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+      );
+    }) as Observable<T[]>;
   }
 
-  collectionGroupValueChanges<T extends { id: string } = any>(
-    collectionId: string,
-    qb?: QueryBuilder
-  ): Observable<T[]> {
-    const collectionRef = collectionGroup(this.firestore, collectionId);
+  collectionGroupValueChanges<T = any>(collectionId: string, qb?: QueryBuilder): Observable<T[]> {
     qb ??= new QueryBuilder();
-
-    return collectionData<T>(qb.exec(collectionRef, queryOps), { idField: 'id' as keyof T }).pipe((s) =>
-      (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
-    );
+    
+    return this.run(() => {
+      const collectionRef = collectionGroup(this.firestore, collectionId);
+      return collectionData(qb.exec(collectionRef, queryOps), { idField: 'id' } as any).pipe((s) =>
+        (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+      );
+    }) as Observable<T[]>;
   }
 
   collectionSnapshot(path: string, qb?: QueryBuilder): Promise<QuerySnapshot<any> | any> {
     qb ??= new QueryBuilder();
 
-    const collectionRef = collection(this.firestore, path);
-    return getDocs(qb.exec(collectionRef, queryOps));
+    return this.run(() => {
+      const collectionRef = collection(this.firestore, path);
+      return getDocs(qb.exec(collectionRef, queryOps));
+    });
   }
 
   collectionSnapshotChanges<T = any>(path: string, qb?: QueryBuilder, events?: DocumentChangeType[]): Observable<T[]> {
-    const collectionRef: any = collection(this.firestore, path);
     qb ??= new QueryBuilder();
-
-    return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
-      map((changes: any[]) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
-      (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
-    );
+    
+    return this.run(() => {
+      const collectionRef: any = collection(this.firestore, path);
+      return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
+        map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
+        (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+      );
+    })
   }
 
   collectionGroupSnapshotChanges<T = any>(
@@ -275,30 +293,23 @@ export class FirestoreService extends AbstractFirestoreApi {
     qb?: QueryBuilder,
     events?: DocumentChangeType[]
   ): Observable<T[]> {
-    const collectionRef: any = collectionGroup(this.firestore, collectionId);
     qb ??= new QueryBuilder();
 
-    return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
-      map((changes: any[]) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
-      (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
-    );
+    return this.run(() => {
+      const collectionRef: any = collectionGroup(this.firestore, collectionId);
+
+      return collectionChanges(qb.exec(collectionRef, queryOps), { events }).pipe(
+        map((changes) => changes.map((c) => Object.assign({}, c.doc.data(), { id: c.doc.id } as any))),
+        (s) => (qb?.joins ?? []).map((j) => leftJoin(this, ...j)).reduce((ss, o) => o(ss), s)
+      );
+    });
   }
 
-  docValueChanges<T extends { id: string } = any>(path: string): Observable<T> {
-    const docRef: any = doc(this.firestore, path);
-    return docData<T>(docRef, { idField: 'id' as keyof T });
-  }
-
-  collectionSignal<T extends { id: string } = any>(path: string, qb?: QueryBuilder): Signal<T[]> {
-    return toSignal(this.collectionValueChanges<T>(path, qb), { initialValue: [] as T[] });
-  }
-
-  collectionGroupSignal<T extends { id: string } = any>(collectionId: string, qb?: QueryBuilder): Signal<T[]> {
-    return toSignal(this.collectionGroupValueChanges<T>(collectionId, qb), { initialValue: [] as T[] });
-  }
-
-  docSignal<T extends { id: string } = any>(path: string): Signal<T | null> {
-    return toSignal(this.docValueChanges<T>(path), { initialValue: null as T | null });
+  docValueChanges<T = any>(path: string): Observable<T> {
+    return this.run(() => {
+      const docRef: any = doc(this.firestore, path);
+      return docData<T>(docRef, { idField: 'id' } as any) as Observable<T>;
+    });
   }
 
   /**
@@ -306,12 +317,8 @@ export class FirestoreService extends AbstractFirestoreApi {
    *
    * Cache collection data in memory
    */
-  collectionWithCache<T extends { id: string } = any>(
-    path: string,
-    qb?: QueryBuilder,
-    maxAge?: number
-  ): Observable<T[]> {
-    return this.fetchFromCache(this.makeCacheKey(path, qb), this.collectionValueChanges<T>(path, qb), maxAge);
+  collectionWithCache<T = any>(path: string, qb?: QueryBuilder, maxAge?: number): Observable<T[]> {
+    return this.fetchFromCache(path + (qb ? JSON.stringify(qb) : ''), this.collectionValueChanges<T>(path, qb), maxAge);
   }
 
   /**
@@ -319,13 +326,9 @@ export class FirestoreService extends AbstractFirestoreApi {
    *
    * Cache collectionGroup data in memory
    */
-  collectionGroupWithCache<T extends { id: string } = any>(
-    collectionId: string,
-    qb?: QueryBuilder,
-    maxAge?: number
-  ): Observable<T[]> {
+  collectionGroupWithCache<T = any>(collectionId: string, qb?: QueryBuilder, maxAge?: number): Observable<T[]> {
     return this.fetchFromCache(
-      this.makeCacheKey(collectionId, qb),
+      collectionId + (qb ? JSON.stringify(qb) : ''),
       this.collectionGroupValueChanges<T>(collectionId, qb),
       maxAge
     );
@@ -346,7 +349,7 @@ export class FirestoreService extends AbstractFirestoreApi {
    * Delete cached data from the memory
    */
   deleteCache(path: string, qb?: QueryBuilder) {
-    const key = this.makeCacheKey(path, qb);
+    const key = path + (qb ? JSON.stringify(qb) : '');
     return this.cache.delete(key);
   }
 
@@ -358,11 +361,6 @@ export class FirestoreService extends AbstractFirestoreApi {
     }
 
     return of(cached.data);
-  }
-
-  private makeCacheKey(path: string, qb?: QueryBuilder): string {
-    const q = qb ? (typeof (qb as any).toJSON === 'function' ? (qb as any).toJSON() : qb) : null;
-    return path + (q ? JSON.stringify(q) : '');
   }
 }
 
